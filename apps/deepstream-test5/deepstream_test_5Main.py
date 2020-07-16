@@ -22,6 +22,8 @@
 # DEALINGS IN THE SOFTWARE.
 ################################################################################
 
+# Esta sección contiene la carga de las librerias de los programas test2 y test3
+
 import sys
 sys.path.append('../')
 import gi
@@ -53,11 +55,12 @@ MUXER_BATCH_TIMEOUT_USEC=4000000
 TILED_OUTPUT_WIDTH=1920
 TILED_OUTPUT_HEIGHT=1080
 GST_CAPS_FEATURES_NVMM="memory:NVMM"
+
 pgie_classes_str= ["Vehicle", "TwoWheeler", "Person","RoadSign"]
 
 # tiler_sink_pad_buffer_probe  will extract metadata received on OSD sink pad
 # and update params for drawing rectangle, object information etc.
-def tiler_src_pad_buffer_probe(pad,info,u_data):
+def tiler_src_pad_buffer_probe(pad,info,u_data):                # En test 2 se llama osd_sink_pad_buffer tiene la misma funcionalidad
     frame_number=0
     num_rects=0
     gst_buffer = info.get_buffer()
@@ -80,18 +83,25 @@ def tiler_src_pad_buffer_probe(pad,info,u_data):
             frame_meta = pyds.NvDsFrameMeta.cast(l_frame.data)
         except StopIteration:
             break
-
-        '''
+            
+        # No se estos 3 aprostrofes de la siguiente linea si son ignorados o que ?
+        '''  
         print("Frame Number is ", frame_meta.frame_num)
         print("Source id is ", frame_meta.source_id)
         print("Batch id is ", frame_meta.batch_id)
         print("Source Frame Width ", frame_meta.source_frame_width)
         print("Source Frame Height ", frame_meta.source_frame_height)
         print("Num object meta ", frame_meta.num_obj_meta)
+        
+        # No se estos 3 aprostrofes de la siguiente linea si son ignorados o que ?
         '''
+        
         frame_number=frame_meta.frame_num
         l_obj=frame_meta.obj_meta_list
         num_rects = frame_meta.num_obj_meta
+        
+        # Inicializacion de contadores en 0, en test2 se define antes del while l_frame is not None... no veo afectacion
+        
         obj_counter = {
         PGIE_CLASS_ID_VEHICLE:0,
         PGIE_CLASS_ID_PERSON:0,
@@ -109,7 +119,10 @@ def tiler_src_pad_buffer_probe(pad,info,u_data):
                 l_obj=l_obj.next
             except StopIteration:
                 break
+
+        # no entiendo si la siguiente linea se ejecuta o es esta comentada, en test 2 esta activa
         """display_meta=pyds.nvds_acquire_display_meta_from_pool(batch_meta)
+        
         display_meta.num_labels = 1
         py_nvosd_text_params = display_meta.text_params[0]
         py_nvosd_text_params.display_text = "Frame Number={} Number of Objects={} Vehicle_count={} Person_count={}".format(frame_number, num_rects, vehicle_count, person)
@@ -117,15 +130,27 @@ def tiler_src_pad_buffer_probe(pad,info,u_data):
         py_nvosd_text_params.y_offset = 12;
         py_nvosd_text_params.font_params.font_name = "Serif"
         py_nvosd_text_params.font_params.font_size = 10
+        
+        # En test 2 se ocupa una sola linea de comando para las sigientes 4 
+        # colores, red, green, blue, alpha 
+        # py_nvosd_text_params.font_params.font_color.set( 1.0, 1.0, 1.0, 1.0 ) para ponerlo en white
+        
         py_nvosd_text_params.font_params.font_color.red = 1.0
         py_nvosd_text_params.font_params.font_color.green = 1.0
         py_nvosd_text_params.font_params.font_color.blue = 1.0
         py_nvosd_text_params.font_params.font_color.alpha = 1.0
+        
         py_nvosd_text_params.set_bg_clr = 1
+
+        # En test 2 se ocupa una sola linea de comando para las sigientes 4 
+        # colores, red, green, blue, alpha 
+        # py_nvosd_text_params.text_bg_clr.set( 0.0, 0.0, 0.0, 1.0 ) para ponerlo en black
+
         py_nvosd_text_params.text_bg_clr.red = 0.0
         py_nvosd_text_params.text_bg_clr.green = 0.0
         py_nvosd_text_params.text_bg_clr.blue = 0.0
         py_nvosd_text_params.text_bg_clr.alpha = 1.0
+        
         #print("Frame Number=", frame_number, "Number of Objects=",num_rects,"Vehicle_count=",vehicle_count,"Person_count=",person)
         pyds.nvds_add_display_meta_to_frame(frame_meta, display_meta)"""
         print("Frame Number=", frame_number, "Number of Objects=",num_rects,"Vehicle_count=",obj_counter[PGIE_CLASS_ID_VEHICLE],"Person_count=",obj_counter[PGIE_CLASS_ID_PERSON])
@@ -138,7 +163,6 @@ def tiler_src_pad_buffer_probe(pad,info,u_data):
             break
 
     return Gst.PadProbeReturn.OK
-
 
 
 def cb_newpad(decodebin, decoder_src_pad,data):
