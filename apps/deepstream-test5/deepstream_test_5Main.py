@@ -60,7 +60,9 @@ pgie_classes_str= ["Vehicle", "TwoWheeler", "Person","RoadSign"]
 
 # tiler_sink_pad_buffer_probe  will extract metadata received on OSD sink pad
 # and update params for drawing rectangle, object information etc.
-def tiler_src_pad_buffer_probe(pad,info,u_data):                # En test 2 se llama osd_sink_pad_buffer tiene la misma funcionalidad
+# En test 2 se llama osd_sink_pad_buffer tiene la misma funcionalidad
+
+def tiler_src_pad_buffer_probe(pad,info,u_data):                
     frame_number=0
     num_rects=0
     gst_buffer = info.get_buffer()
@@ -84,7 +86,8 @@ def tiler_src_pad_buffer_probe(pad,info,u_data):                # En test 2 se l
         except StopIteration:
             break
             
-        # No se estos 3 aprostrofes de la siguiente linea si son ignorados o que ?
+        # No se estos 3 apostrofes de la siguiente linea si son ignorados o que ?
+        # o son comentarios multilinea y los 6 prints siguientes no se imprimen.
         '''  
         print("Frame Number is ", frame_meta.frame_num)
         print("Source id is ", frame_meta.source_id)
@@ -93,7 +96,7 @@ def tiler_src_pad_buffer_probe(pad,info,u_data):                # En test 2 se l
         print("Source Frame Height ", frame_meta.source_frame_height)
         print("Num object meta ", frame_meta.num_obj_meta)
         
-        # No se estos 3 aprostrofes de la siguiente linea si son ignorados o que ?
+        # No se estos 3 apostrofes de la siguiente linea son ignorados o que ?
         '''
         
         frame_number=frame_meta.frame_num
@@ -121,6 +124,7 @@ def tiler_src_pad_buffer_probe(pad,info,u_data):                # En test 2 se l
                 break
 
         # no entiendo si la siguiente linea se ejecuta o es esta comentada, en test 2 esta activa
+        #
         """display_meta=pyds.nvds_acquire_display_meta_from_pool(batch_meta)
         
         display_meta.num_labels = 1
@@ -235,6 +239,8 @@ def create_source_bin(index,uri):
 
 def main(args):
     # Check input arguments
+    # Al menos debe de tener un video o un RTSP
+    
     if len(args) < 2:
         sys.stderr.write("usage: %s <uri1> [uri2] ... [uriN]\n" % args[0])
         sys.exit(1)
@@ -249,6 +255,7 @@ def main(args):
 
     # Create gstreamer elements */
     # Create Pipeline element that will form a connection of other elements
+    
     print("Creating Pipeline \n ")
     pipeline = Gst.Pipeline()
     is_live = False
@@ -375,7 +382,7 @@ def main(args):
     #    sys.stderr.write(" Unable to create egl sink \n")
 
     if is_live:
-        print("Atleast one of the sources is live")
+        print("At least one of the sources is live")
         streammux.set_property('live-source', 1)
 
     streammux.set_property('width', 1920)
@@ -435,10 +442,10 @@ def main(args):
     
     pipeline.add(pgie)
     pipeline.add(tracker)                   # añadido
-    pipeline.add(tiler)
     pipeline.add(sgie1)                     # añadido
     pipeline.add(sgie2)                     # añadido
     pipeline.add(sgie3)                     # añadido
+    pipeline.add(tiler)
     pipeline.add(nvvidconv)
     pipeline.add(nvosd)
     pipeline.add(sink)                      # añadido
@@ -449,14 +456,14 @@ def main(args):
     
     print("Linking elements in the Pipeline \n")
     streammux.link(pgie)
-    # pgie.link(tiler)                  
+    # pgie.link(tiler)                          # debe ir despues de los clasificadores secundarios               
     pgie.link(tracker)                          # La linea anterior se modifica con la opcion de tracker
     tracker.link(sgie1)                         # Se añade
     sgie1.link(sgie2)                           # Se añade
     sgie2.link(sgie3)                           # Se añade
-    sgie3.link(nvvidconv)                       # Se añade
+    sgie3.link(tiler)                           # Se añade .... nvvidconv
     
-    # tiler.link(nvvidconv)                     # No estoy seguro con que se debe ligar...???   
+    tiler.link(nvvidconv)                       # Duda sobre si se liga con nvosd o nvvidconv
     
     nvvidconv.link(nvosd)
     if is_aarch64():
