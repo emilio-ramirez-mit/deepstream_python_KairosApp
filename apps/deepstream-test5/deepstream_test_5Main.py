@@ -258,6 +258,8 @@ def main(args):
     print("Creating streamux \n ")
 
     # Create nvstreammux instance to form batches from one or more sources.
+    # En test2 los parametros son "filesrc" y "file-source" que solo permite un archivo, aqui es para una o mas fuentes de diferente tipo
+    
     streammux = Gst.ElementFactory.make("nvstreammux", "Stream-muxer")
     if not streammux:
         sys.stderr.write(" Unable to create NvStreamMux \n")
@@ -280,22 +282,54 @@ def main(args):
         if not srcpad:
             sys.stderr.write("Unable to create src pad bin \n")
         srcpad.link(sinkpad)
+    
+    # Creacion de elementos de Gstreamer
+    
+    # Use nvinfer to run inferencing on decoder's output,
+    # behaviour of inferencing is set through config file
+    
     print("Creating Pgie \n ")
     pgie = Gst.ElementFactory.make("nvinfer", "primary-inference")
     if not pgie:
         sys.stderr.write(" Unable to create pgie \n")
-    print("Creating tiler \n ")
-    tiler=Gst.ElementFactory.make("nvmultistreamtiler", "nvtiler")
-    if not tiler:
-        sys.stderr.write(" Unable to create tiler \n")
+
+    tracker = Gst.ElementFactory.make("nvtracker", "tracker")
+    if not tracker:
+        sys.stderr.write(" Unable to create tracker \n")
+
+    sgie1 = Gst.ElementFactory.make("nvinfer", "secondary1-nvinference-engine")
+    if not sgie1:
+        sys.stderr.write(" Unable to make sgie1 \n")
+
+    sgie2 = Gst.ElementFactory.make("nvinfer", "secondary2-nvinference-engine")
+    if not sgie1:
+        sys.stderr.write(" Unable to make sgie2 \n")
+
+    sgie3 = Gst.ElementFactory.make("nvinfer", "secondary3-nvinference-engine")
+    if not sgie3:
+        sys.stderr.write(" Unable to make sgie3 \n")
+    
     print("Creating nvvidconv \n ")
     nvvidconv = Gst.ElementFactory.make("nvvideoconvert", "convertor")
     if not nvvidconv:
         sys.stderr.write(" Unable to create nvvidconv \n")
+
+    # Create OSD to draw on the converted RGBA buffer
     print("Creating nvosd \n ")
     nvosd = Gst.ElementFactory.make("nvdsosd", "onscreendisplay")
+
     if not nvosd:
         sys.stderr.write(" Unable to create nvosd \n")
+    
+    print("Creating tiler \n ")
+    tiler=Gst.ElementFactory.make("nvmultistreamtiler", "nvtiler")
+    if not tiler:
+        sys.stderr.write(" Unable to create tiler \n")
+        
+    # Finally render the osd output    , a la version test 2 le falta la validacion de transform
+    # if is_aarch64():
+    #    transform = Gst.ElementFactory.make("nvegltransform", "nvegl-transform")
+
     if(is_aarch64()):
         print("Creating transform \n ")
         transform=Gst.ElementFactory.make("nvegltransform", "nvegl-transform")
@@ -305,7 +339,40 @@ def main(args):
     print("Creating EGLSink \n")
     sink = Gst.ElementFactory.make("nveglglessink", "nvvideo-renderer")
     if not sink:
-        sys.stderr.write(" Unable to create egl sink \n")
+        sys.stderr.write(" Unable to create egl sink \n")    
+    
+    #  Hasta Aqui codigo añadido
+    
+    # print("Creating Pgie \n ")
+    # pgie = Gst.ElementFactory.make("nvinfer", "primary-inference")
+    # if not pgie:
+    #    sys.stderr.write(" Unable to create pgie \n")
+    
+    # print("Creating tiler \n ")
+    # tiler=Gst.ElementFactory.make("nvmultistreamtiler", "nvtiler")
+    # if not tiler:
+    #    sys.stderr.write(" Unable to create tiler \n")
+    
+    # print("Creating nvvidconv \n ")
+    # nvvidconv = Gst.ElementFactory.make("nvvideoconvert", "convertor")
+    # if not nvvidconv:
+    #    sys.stderr.write(" Unable to create nvvidconv \n")
+    
+    # print("Creating nvosd \n ")
+    # nvosd = Gst.ElementFactory.make("nvdsosd", "onscreendisplay")
+    # if not nvosd:
+    #    sys.stderr.write(" Unable to create nvosd \n")
+    
+    # if(is_aarch64()):
+    #     print("Creating transform \n ")
+    #     transform=Gst.ElementFactory.make("nvegltransform", "nvegl-transform")
+    #    if not transform:
+    #        sys.stderr.write(" Unable to create transform \n")
+
+    # print("Creating EGLSink \n")
+    # sink = Gst.ElementFactory.make("nveglglessink", "nvvideo-renderer")
+    # if not sink:
+    #    sys.stderr.write(" Unable to create egl sink \n")
 
     if is_live:
         print("Atleast one of the sources is live")
@@ -315,11 +382,46 @@ def main(args):
     streammux.set_property('height', 1080)
     streammux.set_property('batch-size', number_sources)
     streammux.set_property('batched-push-timeout', 4000000)
-    pgie.set_property('config-file-path', "dstest3_pgie_config.txt")
+    
+    pgie.set_property('config-file-path', "dstest5_pgie_config.txt")            # Falta añadir la ruta completa del archivo de configuracion
     pgie_batch_size=pgie.get_property("batch-size")
     if(pgie_batch_size != number_sources):
         print("WARNING: Overriding infer-config batch-size",pgie_batch_size," with number of sources ", number_sources," \n")
         pgie.set_property("batch-size",number_sources)
+    
+    # Se añaden las propiedades de Sgie, falta agregarles la ruta completa de los archivos de configuracion
+    
+    sgie1.set_property('config-file-path', "dstest5_sgie1_config.txt")
+    sgie2.set_property('config-file-path', "dstest5_sgie2_config.txt")
+    sgie3.set_property('config-file-path', "dstest5_sgie3_config.txt")
+
+    #Set properties of tracker
+    config = configparser.ConfigParser()
+    config.read('dstest2_tracker_config.txt')                                   # Falta añadir la ruta completa del archivo de configuracion
+    config.sections()
+
+    for key in config['tracker']:
+        if key == 'tracker-width' :
+            tracker_width = config.getint('tracker', key)
+            tracker.set_property('tracker-width', tracker_width)
+        if key == 'tracker-height' :
+            tracker_height = config.getint('tracker', key)
+            tracker.set_property('tracker-height', tracker_height)
+        if key == 'gpu-id' :
+            tracker_gpu_id = config.getint('tracker', key)
+            tracker.set_property('gpu_id', tracker_gpu_id)
+        if key == 'll-lib-file' :
+            tracker_ll_lib_file = config.get('tracker', key)
+            tracker.set_property('ll-lib-file', tracker_ll_lib_file)
+        if key == 'll-config-file' :
+            tracker_ll_config_file = config.get('tracker', key)
+            tracker.set_property('ll-config-file', tracker_ll_config_file)
+        if key == 'enable-batch-process' :
+            tracker_enable_batch_process = config.getint('tracker', key)
+            tracker.set_property('enable_batch_process', tracker_enable_batch_process)
+    
+    # Hasta aqui codigo añadido
+    
     tiler_rows=int(math.sqrt(number_sources))
     tiler_columns=int(math.ceil((1.0*number_sources)/tiler_rows))
     tiler.set_property("rows",tiler_rows)
@@ -327,19 +429,35 @@ def main(args):
     tiler.set_property("width", TILED_OUTPUT_WIDTH)
     tiler.set_property("height", TILED_OUTPUT_HEIGHT)
 
+    
     print("Adding elements to Pipeline \n")
+    # Añado elementos adicionales para detección y tracking 
+    
     pipeline.add(pgie)
+    pipeline.add(tracker)                   # añadido
     pipeline.add(tiler)
+    pipeline.add(sgie1)                     # añadido
+    pipeline.add(sgie2)                     # añadido
+    pipeline.add(sgie3)                     # añadido
     pipeline.add(nvvidconv)
     pipeline.add(nvosd)
+    pipeline.add(sink)                      # añadido
     if is_aarch64():
         pipeline.add(transform)
     pipeline.add(sink)
 
+    
     print("Linking elements in the Pipeline \n")
     streammux.link(pgie)
-    pgie.link(tiler)
-    tiler.link(nvvidconv)
+    # pgie.link(tiler)                  
+    pgie.link(tracker)                          # La linea anterior se modifica con la opcion de tracker
+    tracker.link(sgie1)                         # Se añade
+    sgie1.link(sgie2)                           # Se añade
+    sgie2.link(sgie3)                           # Se añade
+    sgie3.link(nvvidconv)                       # Se añade
+    
+    # tiler.link(nvvidconv)                     # No estoy seguro con que se debe ligar...???   
+    
     nvvidconv.link(nvosd)
     if is_aarch64():
         nvosd.link(transform)
@@ -352,6 +470,8 @@ def main(args):
     bus = pipeline.get_bus()
     bus.add_signal_watch()
     bus.connect ("message", bus_call, loop)
+    
+    # Dudas en que hace tiler...
     tiler_src_pad=pgie.get_static_pad("src")
     if not tiler_src_pad:
         sys.stderr.write(" Unable to get src pad \n")
