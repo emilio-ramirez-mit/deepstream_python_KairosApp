@@ -170,7 +170,8 @@ def tiler_src_pad_buffer_probe(pad,info,u_data):
 
 
 def cb_newpad(decodebin, decoder_src_pad,data):
-    print("In cb_newpad\n")
+    # print de control, no necesario en ambiente de produccion
+    # print("In cb_newpad\n")
     caps=decoder_src_pad.get_current_caps()
     gststruct=caps.get_structure(0)
     gstname=gststruct.get_name()
@@ -179,12 +180,16 @@ def cb_newpad(decodebin, decoder_src_pad,data):
 
     # Need to check if the pad created by the decodebin is for video and not
     # audio.
-    print("gstname=",gstname)
+    # print de control, no necesario en ambiente de produccion
+    # print("gstname=",gstname)
+    
     if(gstname.find("video")!=-1):
         # Link the decodebin pad only if decodebin has picked nvidia
         # decoder plugin nvdec_*. We do this by checking if the pad caps contain
         # NVMM memory features.
-        print("features=",features)
+        
+        # print de control, no necesario en ambiente de produccion
+        # print("features=",features)
         if features.contains("memory:NVMM"):
             # Get the source bin ghost pad
             bin_ghost_pad=source_bin.get_static_pad("src")
@@ -194,20 +199,26 @@ def cb_newpad(decodebin, decoder_src_pad,data):
             sys.stderr.write(" Error: Decodebin did not pick nvidia decoder plugin.\n")
 
 def decodebin_child_added(child_proxy,Object,name,user_data):
-    print("Decodebin child added:", name, "\n")
+    # print de control, no necesario en ambiente de produccion
+    # print("Decodebin child added:", name, "\n")
     if(name.find("decodebin") != -1):
         Object.connect("child-added",decodebin_child_added,user_data)   
     if(is_aarch64() and name.find("nvv4l2decoder") != -1):
-        print("Seting bufapi_version\n")
+        # print de control, no necesario en ambiente de produccion
+        # print("Seting bufapi_version\n")
         Object.set_property("bufapi-version",True)
 
+# La siguiente función recibe un número consecutivo y la cadena del RTSP://        
 def create_source_bin(index,uri):
-    print("Creating source bin")
+    # print de control, no necesario en ambiente productivo
+    # print("Creating source bin")
 
     # Create a source GstBin to abstract this bin's content from the rest of the
     # pipeline
     bin_name="source-bin-%02d" %index
-    print(bin_name)
+    
+    # print de control, no necesario en ambiente productivo
+    # print(bin_name)
     nbin=Gst.Bin.new(bin_name)
     if not nbin:
         sys.stderr.write(" Unable to create source bin \n")
@@ -222,8 +233,9 @@ def create_source_bin(index,uri):
     uri_decode_bin.set_property("uri",uri)
     # Connect to the "pad-added" signal of the decodebin which generates a
     # callback once a new pad for raw data has beed created by the decodebin
-    uri_decode_bin.connect("pad-added",cb_newpad,nbin)
-    uri_decode_bin.connect("child-added",decodebin_child_added,nbin)
+    
+    uri_decode_bin.connect("pad-added",cb_newpad,nbin)                              # Se hace el llamado a la función cb_newpad_nbin
+    uri_decode_bin.connect("child-added",decodebin_child_added,nbin)                # Se hace el llamado a la función decodebin_child_Added
 
     # We need to create a ghost pad for the source bin which will act as a proxy
     # for the video decoder src pad. The ghost pad will not have a target right
@@ -238,17 +250,22 @@ def create_source_bin(index,uri):
     return nbin
 
 def main(args):
-    # Check input arguments
-    # Al menos debe de tener un video o un RTSP
+    # Aqui guardamos el numero de fuentes a procesar
+    number_sources=len(args)-1                      
     
-    if len(args) < 2:
+    # Check input arguments
+    # Al menos debe de tener un video o un RTSP y soporta una cadena de los mismos >= 1
+    # En nuestro caso todos son RTSP con H264 y con las caracteristicas de Meraki
+  
+ 
+    if number_sources+1 < 2:
         sys.stderr.write("usage: %s <uri1> [uri2] ... [uriN]\n" % args[0])
         sys.exit(1)
 
-    for i in range(0,len(args)-1):
+    for i in range(0,number_sources):
         fps_streams["stream{0}".format(i)]=GETFPS(i)
-    number_sources=len(args)-1
-
+    
+ 
     # Standard GStreamer initialization
     GObject.threads_init()
     Gst.init(None)
@@ -256,27 +273,31 @@ def main(args):
     # Create gstreamer elements */
     # Create Pipeline element that will form a connection of other elements
     
-    print("Creating Pipeline \n ")
+    # print de control , no necesario en ambiente productivo
+    # print("Creating Pipeline \n ") 
     pipeline = Gst.Pipeline()
-    is_live = False
-
     if not pipeline:
         sys.stderr.write(" Unable to create Pipeline \n")
-    print("Creating streamux \n ")
+    
 
     # Create nvstreammux instance to form batches from one or more sources.
-    # En test2 los parametros son "filesrc" y "file-source" que solo permite un archivo, aqui es para una o mas fuentes de diferente tipo
-    
+    # print de control , no necesario en ambiente productivo
+    # print("Creating streamux \n ")
     streammux = Gst.ElementFactory.make("nvstreammux", "Stream-muxer")
     if not streammux:
         sys.stderr.write(" Unable to create NvStreamMux \n")
 
     pipeline.add(streammux)
+    is_live = False
     for i in range(number_sources):
-        print("Creating source_bin ",i," \n ")
+        # prin de control, no necesario para ambientes productivos
+        # print("Creating source_bin ",i," \n ")
+        
+        # A continuación se identifican una por una las fuentes y se almacenan en uri_name
         uri_name=args[i+1]
         if uri_name.find("rtsp://") == 0 :
             is_live = True
+        # Se hace llamdo a la funcion create_source_bin    
         source_bin=create_source_bin(i, uri_name)
         if not source_bin:
             sys.stderr.write("Unable to create source bin \n")
@@ -382,7 +403,8 @@ def main(args):
     #    sys.stderr.write(" Unable to create egl sink \n")
 
     if is_live:
-        print("At least one of the sources is live")
+        # print de control, no necesario en ambiente de produccion
+        # print("At least one of the sources is live")
         streammux.set_property('live-source', 1)
 
     streammux.set_property('width', 1920)
@@ -486,12 +508,15 @@ def main(args):
         tiler_src_pad.add_probe(Gst.PadProbeType.BUFFER, tiler_src_pad_buffer_probe, 0)
 
     # List the sources
-    print("Now playing...")
-    for i, source in enumerate(args):
-        if (i != 0):
-            print(i, ": ", source)
+    # print de control, no necesario en ambiente de produccion
+    # print("Now playing...")
+    # Creo que este for es solo para imprimir las sources
+    # for i, source in enumerate(args):
+    #     if (i != 0):
+    #         print(i, ": ", source)
 
-    print("Starting pipeline \n")
+    # print de control, no necesario en ambiente de produccion
+    # print("Starting pipeline \n")
     # start play back and listed to events		
     pipeline.set_state(Gst.State.PLAYING)
     try:
@@ -499,7 +524,8 @@ def main(args):
     except:
         pass
     # cleanup
-    print("Exiting app\n")
+    # print de control, no necesario en ambiente de produccion
+    # print("Exiting app\n")
     pipeline.set_state(Gst.State.NULL)
 
 if __name__ == '__main__':
